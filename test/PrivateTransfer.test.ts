@@ -8,10 +8,10 @@ import { readFileSync } from 'fs';
 import path from 'path';
 import { randomBytes } from 'crypto'
 import { compile, acir_from_bytes } from '@noir-lang/noir_wasm';
-import { setup_generic_prover_and_verifier, create_proof, verify_proof, StandardExampleProver, StandardExampleVerifier, getCircuitSize } from '@noir-lang/barretenberg/dest/client_proofs';
-import { BarretenbergWasm } from '@noir-lang/barretenberg/dest/wasm';
-import { SinglePedersen } from '@noir-lang/barretenberg/dest/crypto/pedersen';
-import { Schnorr } from '@noir-lang/barretenberg/dest/crypto/schnorr';
+import { setup_generic_prover_and_verifier, create_proof, verify_proof, StandardExampleProver, StandardExampleVerifier, getCircuitSize } from '@noir-lang/barretenberg';
+import { BarretenbergWasm } from '@noir-lang/barretenberg';
+import { SinglePedersen } from '@noir-lang/barretenberg';
+import { Schnorr } from '@noir-lang/barretenberg';
 import { serialise_public_inputs } from '@noir-lang/aztec_backend';
 import { MerkleTree } from "../utils/MerkleTree";
 
@@ -50,7 +50,7 @@ before(async () => {
   pedersen = new SinglePedersen(barretenberg);
   let schnorr = new Schnorr(barretenberg);
   tree = new MerkleTree(3, barretenberg);
-  
+
   let test_transfers = generateTestTransfers(2, schnorr);
   transfers.push(...test_transfers);
 
@@ -60,10 +60,11 @@ before(async () => {
 
   // NOTE: If preferred you can compile directly in Typescript. Just uncomment the two lines below and comment out the lines below that read in the ACIR from file
   // Make sure to change the generate_sol_verifier script to compile in TS as well to avoid any differences in the ACIR
-  // let compiled_program = compile(path.resolve(__dirname, '../circuits/src/main.nr'));
-  // acir = compiled_program.circuit;
-  let acirByteArray = path_to_uint8array(path.resolve(__dirname, '../circuits/build/p.acir'));
-  acir = acir_from_bytes(acirByteArray);
+  let compiled_program = compile(path.resolve(__dirname, '../circuits/src/main.nr'));
+  acir = compiled_program.circuit;
+  // let acirByteArray = path_to_uint8array(path.resolve(__dirname, '../circuits/target/p.acir.acir'));
+  // acir = acir_from_bytes(acirByteArray);
+
   [prover, verifier] = await setup_generic_prover_and_verifier(acir);
 });
 
@@ -73,15 +74,17 @@ describe("Noir circuit verifies succesfully using Typescript", () => {
     let note_hash_path = merkleProof.pathElements
 
     let abi = {
-      recipient: recipient,
-      priv_key: `0x` + sender_priv_key.toString('hex'),
-      note_root: `0x` + note_root, 
-      index: 0,
-      note_hash_path: generateHashPathInput(note_hash_path),
-      secret: `0x` + transfers[0].secret.toString('hex'),
-      return: [`0x` + transfers[0].nullifier.toString('hex'), recipient]
+      x: 4,
+      y: 5
+      // recipient: recipient,
+      // priv_key: `0x` + sender_priv_key.toString('hex'),
+      // note_root: `0x` + note_root,
+      // index: 0,
+      // note_hash_path: generateHashPathInput(note_hash_path),
+      // secret: `0x` + transfers[0].secret.toString('hex'),
+      // return: [`0x` + transfers[0].nullifier.toString('hex'), recipient]
     };
-        
+
     const proof: Buffer = await create_proof(prover, acir, abi);
 
     const verified = await verify_proof(verifier, proof);
@@ -104,17 +107,17 @@ describe("Noir circuit verifies succesfully using Typescript", () => {
   it("Simple shield works for merkle tree insert, compiled using nargo", async () => {
     let merkleProof = tree.proof(0);
     let note_hash_path = merkleProof.pathElements;
-    
+
     let abi = {
       recipient: recipient,
       priv_key: `0x` + sender_priv_key.toString('hex'),
-      note_root: `0x` + note_root, 
+      note_root: `0x` + note_root,
       index: 0,
       note_hash_path: generateHashPathInput(note_hash_path),
       secret: `0x` + transfers[0].secret.toString('hex'),
       return: [`0x` + transfers[0].nullifier.toString('hex'), recipient],
     };
-    
+
     const proof = await create_proof(prover, acir, abi);
 
     const verified = await verify_proof(verifier, proof);
@@ -131,13 +134,13 @@ describe("Noir circuit verifies succesfully using Typescript", () => {
     let abi = {
       recipient: recipient,
       priv_key: `0x` + sender_priv_key.toString('hex'),
-      note_root: `0x` + note_root, 
+      note_root: `0x` + note_root,
       index: 1,
       note_hash_path: generateHashPathInput(note_hash_path),
       secret: `0x` + transfers[1].secret.toString('hex'),
       return: [`0x` + transfers[1].nullifier.toString('hex'), recipient]
     };
-    
+
     const proof = await create_proof(prover, acir, abi);
 
     const verified = await verify_proof(verifier, proof);
@@ -159,10 +162,10 @@ describe("Prviate Transfer works with Solidity verifier", () => {
     PrivateTransfer = await ethers.getContractFactory("PrivateTransfer");
     Verifier = await ethers.getContractFactory("TurboVerifier");
 
-    commitments.push(`0x` + transfers[0].note_commitment.toString('hex'), `0x` + transfers[1].note_commitment.toString('hex')); 
+    commitments.push(`0x` + transfers[0].note_commitment.toString('hex'), `0x` + transfers[1].note_commitment.toString('hex'));
 
     verifierContract = await Verifier.deploy();
-    privateTransfer = await PrivateTransfer.deploy(verifierContract.address, amount, `0x` + note_root, commitments, { value: BigNumber.from(numCommitments).mul(privateTransactionAmount) } );
+    privateTransfer = await PrivateTransfer.deploy(verifierContract.address, amount, `0x` + note_root, commitments, { value: BigNumber.from(numCommitments).mul(privateTransactionAmount) });
   })
 
   it("Private transfer should work using Solidity verifier", async () => {
@@ -173,7 +176,7 @@ describe("Prviate Transfer works with Solidity verifier", () => {
     let abi = {
       recipient: recipient,
       priv_key: `0x` + sender_priv_key.toString('hex'),
-      note_root: `0x` + note_root, 
+      note_root: `0x` + note_root,
       index: 0,
       note_hash_path: generateHashPathInput(note_hash_path),
       secret: `0x` + transfers[0].secret.toString('hex'),
@@ -213,13 +216,13 @@ describe("Prviate Transfer works with Solidity verifier", () => {
     let abi = {
       recipient: signers[2].address,
       priv_key: `0x` + sender_priv_key.toString('hex'),
-      note_root: `0x` + note_root, 
+      note_root: `0x` + note_root,
       index: 1,
       note_hash_path: generateHashPathInput(note_hash_path),
       secret: `0x` + transfers[1].secret.toString('hex'),
       return: [nullifierHexString, signers[2].address]
     };
-    
+
     const proof = await create_proof(prover, acir, abi);
 
     const verified = await verify_proof(verifier, proof);
@@ -266,7 +269,7 @@ function generateTestTransfers(num_transfers: number, schnorr: Schnorr) {
     sender_pubkey_x = sender_public_key.subarray(0, 32);
     sender_pubkey_y = sender_public_key.subarray(32)
     console.log('sender public key x: ' + sender_pubkey_x.toString('hex') + '\sender pubkey y: ' + sender_pubkey_y.toString('hex'));
-    
+
     const secret = randomBytes(32)
     // Pedersen is declared globally 
     note_commitment = pedersen.compressInputs([sender_pubkey_x, sender_pubkey_y, secret]);
@@ -284,6 +287,6 @@ function generateTestTransfers(num_transfers: number, schnorr: Schnorr) {
   }
   return transfers;
 }
-  
+
 
 
